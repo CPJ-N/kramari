@@ -1,0 +1,181 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Kramari Brand Colors - Light Mode */
+    --background: 60 20% 96%; /* #f5f5f0 cream */
+    --foreground: 45 8% 31%; /* #55534a charcoal */
+
+    --card: 60 20% 96%; /* #f5f5f0 cream */
+    --card-foreground: 45 8% 31%; /* #55534a charcoal */
+
+    --popover: 0 0% 100%; /* #ffffff white */
+    --popover-foreground: 45 8% 31%; /* #55534a charcoal */
+
+    --primary: 45 8% 31%; /* #55534a charcoal */
+    --primary-foreground: 0 0% 100%; /* #ffffff white */
+
+    --secondary: 45 10% 54%; /* #918c7b muted */
+    --secondary-foreground: 0 0% 100%; /* #ffffff white */
+
+    --muted: 48 18% 74%; /* #cdc5ac taupe */
+    --muted-foreground: 45 8% 31%; /* #55534a charcoal */
+
+    --accent: 48 18% 74%; /* #cdc5ac taupe */
+    --accent-foreground: 45 8% 31%; /* #55534a charcoal */
+
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 48 18% 74% / 0.3; /* taupe with opacity */
+    --input: 48 18% 74% / 0.2;
+    --ring: 45 8% 31%; /* charcoal */
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    /* Kramari Brand Colors - Dark Mode */
+    --background: 0 0% 10%; /* #1a1a1a dark */
+    --foreground: 48 18% 74%; /* #cdc5ac taupe */
+
+    --card: 0 0% 10%; /* #1a1a1a dark */
+    --card-foreground: 48 18% 74%; /* #cdc5ac taupe */
+
+    --popover: 0 0% 10%; /* #1a1a1a dark */
+    --popover-foreground: 48 18% 74%; /* #cdc5ac taupe */
+
+    --primary: 48 18% 74%; /* #cdc5ac taupe */
+    --primary-foreground: 0 0% 10%; /* #1a1a1a dark */
+
+    --secondary: 45 10% 54%; /* #918c7b muted */
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 45 8% 31%; /* #55534a charcoal */
+    --muted-foreground: 48 18% 74%; /* #cdc5ac taupe */
+
+    --accent: 45 8% 31%; /* #55534a charcoal */
+    --accent-foreground: 48 18% 74%; /* #cdc5ac taupe */
+
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 45 8% 31% / 0.3; /* charcoal with opacity */
+    --input: 45 8% 31% / 0.2;
+    --ring: 48 18% 74%; /* taupe */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+/* Kramari Gradient Utilities */
+@layer utilities {
+  .bg-gradient-kramari {
+    @apply bg-gradient-to-r from-kramari-charcoal to-kramari-muted;
+  }
+
+  .bg-gradient-kramari-light {
+    @apply bg-gradient-to-r from-kramari-taupe to-kramari-muted;
+  }
+
+  .text-gradient-kramari {
+    @apply bg-clip-text text-transparent bg-gradient-to-r from-kramari-dark to-kramari-charcoal dark:from-kramari-taupe dark:to-kramari-muted;
+  }
+
+  .glass-effect {
+    @apply bg-opacity-5 backdrop-blur-sm;
+  }
+}
+
+/* Voice Waveform Animation */
+.voice-wave {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  height: 40px;
+}
+
+.voice-wave-bar {
+  width: 4px;
+  border-radius: 2px;
+  animation: voice-wave 1.2s ease-in-out infinite;
+  @apply bg-gradient-to-t from-kramari-taupe to-kramari-charcoal;
+}
+
+.voice-wave-bar:nth-child(1) { animation-delay: 0s; }
+.voice-wave-bar:nth-child(2) { animation-delay: 0.05s; }
+.voice-wave-bar:nth-child(3) { animation-delay: 0.1s; }
+.voice-wave-bar:nth-child(4) { animation-delay: 0.15s; }
+.voice-wave-bar:nth-child(5) { animation-delay: 0.2s; }
+.voice-wave-bar:nth-child(6) { animation-delay: 0.25s; }
+.voice-wave-bar:nth-child(7) { animation-delay: 0.3s; }
+.voice-wave-bar:nth-child(8) { animation-delay: 0.35s; }
+
+@keyframes voice-wave {
+  0%, 100% {
+    height: 15px;
+  }
+  50% {
+    height: 35px;
+  }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-kramari-cream dark:bg-kramari-dark;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-kramari-muted/30 rounded-md;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-kramari-muted/50;
+}
+
+/* Focus Ring */
+.focus-ring {
+  @apply focus:outline-none focus:ring-2 focus:ring-kramari-charcoal dark:focus:ring-kramari-taupe focus:ring-offset-2 focus:ring-offset-background;
+}
+
+/* Section Divider */
+.section-divider {
+  @apply relative w-full py-8;
+}
+
+.section-divider::before {
+  content: '';
+  @apply absolute inset-0 flex items-center;
+  top: 50%;
+  transform: translateY(-50%);
+  border-top: 1px solid;
+  @apply border-kramari-taupe/30 dark:border-kramari-charcoal/30;
+}
+
+/* Background Blobs */
+.blob {
+  @apply absolute rounded-full blur-xl;
+}
+
+.blob-primary {
+  @apply bg-kramari-taupe/15 dark:bg-kramari-charcoal/15;
+}
+
+.blob-secondary {
+  @apply bg-kramari-charcoal/10 dark:bg-kramari-taupe/10;
+}

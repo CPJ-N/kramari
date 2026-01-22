@@ -1,0 +1,287 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Organization for multi-tenancy
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  slug        String   @unique
+  plan        String   @default("free") // free, pro, enterprise
+
+  users       User[]
+  agents      Agent[]
+  calls       Call[]
+  phoneNumbers PhoneNumber[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// User accounts
+model User {
+  id             String   @id @default(cuid())
+  email          String   @unique
+  name           String?
+  password       String?
+  role           String   @default("user") // admin, user
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  agents         Agent[]
+  calls          Call[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  lastLoginAt    DateTime?
+}
+
+// Voice agents
+model Agent {
+  id              String   @id @default(cuid())
+  name            String
+  description     String?
+  type            String   // customer-service, sales, support, etc.
+  status          String   @default("draft") // draft, testing, live, paused, archived
+
+  // Configuration
+  model           String   @default("claude-3-sonnet")
+  systemPrompt    String   @db.Text
+  firstMessage    String?
+  voice           String   @default("alloy")
+  voiceProvider   String   @default("elevenlabs")
+  config          Json?    // Additional configuration
+
+  // Limits & Scaling
+  maxConcurrentCalls Int    @default(10)
+  maxCallDuration    Int    @default(1800) // seconds
+
+  // Relationships
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+
+  phoneNumbers    AgentPhoneNumber[]
+  instances       AgentInstance[]
+  calls           Call[]
+  metrics         AgentMetrics[]
+  templates       AgentTemplate[]
+
+  // Stats
+  totalCalls      Int      @default(0)
+  avgCallDuration Float?
+  successRate     Float?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  lastActiveAt    DateTime?
+}
+
+// Agent instances (runtime)
+model AgentInstance {
+  id          String   @id @default(cuid())
+  agentId     String
+  agent       Agent    @relation(fields: [agentId], references: [id])
+
+  status      String   @default("idle") // idle, busy, offline, error, scaling
+  roomId      String?
+  callId      String?
+
+  // Metrics
+  cpu         Float?
+  memory      Float?
+  activeCalls Int      @default(0)
+
+  startedAt   DateTime @default(now())
+  lastPingAt  DateTime @default(now())
+}
+
+// Phone numbers
+model PhoneNumber {
+  id             String   @id @default(cuid())
+  number         String   @unique
+  provider       String   @default("twilio") // twilio, vonage, etc.
+  type           String   @default("local") // local, toll-free, mobile
+  country        String   @default("US")
+
+  organizationId String
+  organization   Organization @relation(fields: [organizationId], references: [id])
+
+  agents         AgentPhoneNumber[]
+  calls          Call[]
+
+  capabilities   Json?    // voice, sms, mms, fax
+  status         String   @default("active") // active, suspended, released
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+// Many-to-many relation for agents and phone numbers
+model AgentPhoneNumber {
+  agentId       String
+  agent         Agent       @relation(fields: [agentId], references: [id])
+
+  phoneNumberId String
+  phoneNumber   PhoneNumber @relation(fields: [phoneNumberId], references: [id])
+
+  priority      Int         @default(0)
+  isActive      Boolean     @default(true)
+
+  @@id([agentId, phoneNumberId])
+}
+
+// Call records
+model Call {
+  id              String   @id @default(cuid())
+
+  // Relationships
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id])
+
+  agentId         String
+  agent           Agent    @relation(fields: [agentId], references: [id])
+
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+
+  phoneNumberId   String?
+  phoneNumber     PhoneNumber? @relation(fields: [phoneNumberId], references: [id])
+
+  // Call details
+  direction       String   // inbound, outbound
+  type            String   // phone, web, api
+  status          String   // queued, ringing, in-progress, completed, failed, no-answer
+
+  from            String
+  to              String
+
+  // LiveKit details
+  roomId          String
+  roomName        String?
+  participantSid  String?
+
+  // Timing
+  queuedAt        DateTime?
+  startedAt       DateTime @default(now())
+  answeredAt      DateTime?
+  endedAt         DateTime?
+  duration        Int?     // seconds
+
+  // Content
+  transcript      Json?    // Array of transcript entries
+  summary         String?  @db.Text
+  recordingUrl    String?
+
+  // Metrics
+  responseTime    Int?     // ms
+  sentimentScore  Float?
+
+  // Cost
+  cost            Json?    // telephony, transcription, llm, tts costs
+
+  // Transfers
+  transfers       Transfer[]
+
+  metadata        Json?
+  tags            String[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Call transfers between agents
+model Transfer {
+  id          String   @id @default(cuid())
+  callId      String
+  call        Call     @relation(fields: [callId], references: [id])
+
+  fromAgentId String
+  toAgentId   String
+  reason      String
+  context     Json?
+
+  timestamp   DateTime @default(now())
+}
+
+// Agent performance metrics
+model AgentMetrics {
+  id                String   @id @default(cuid())
+  agentId           String
+  agent             Agent    @relation(fields: [agentId], references: [id])
+
+  timestamp         DateTime @default(now())
+
+  // Volume metrics
+  callsHandled      Int
+  callsTransferred  Int      @default(0)
+  callsFailed       Int      @default(0)
+
+  // Performance metrics
+  avgResponseTime   Float    // ms
+  avgCallDuration   Float    // seconds
+  avgHoldTime       Float    @default(0)
+
+  // Quality metrics
+  successRate       Float
+  transferRate      Float
+  errorRate         Float
+  sentimentScore    Float?
+
+  // Cost metrics
+  totalCost         Float    @default(0)
+  avgCostPerCall    Float    @default(0)
+}
+
+// Pre-built agent templates
+model AgentTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  category    String   // customer-service, sales, support, etc.
+  thumbnail   String?
+
+  config      Json     // Full agent configuration
+  prompts     Json     // System prompts and examples
+
+  agentId     String?
+  agent       Agent?   @relation(fields: [agentId], references: [id])
+
+  isPublic    Boolean  @default(true)
+  popular     Boolean  @default(false)
+  deployCount Int      @default(0)
+  rating      Float?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Queue for managing call distribution
+model CallQueue {
+  id          String   @id @default(cuid())
+  callId      String   @unique
+  agentId     String
+  priority    Int      @default(0)
+
+  queuedAt    DateTime @default(now())
+  estimatedWait Int?   // seconds
+}
+
+// Session for WebRTC/LiveKit
+model Session {
+  id          String   @id @default(cuid())
+  token       String   @unique
+  roomName    String
+  identity    String
+
+  expiresAt   DateTime
+  createdAt   DateTime @default(now())
+}

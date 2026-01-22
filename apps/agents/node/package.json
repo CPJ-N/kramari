@@ -1,0 +1,31 @@
+{
+  "name": "@kramari/agents",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --import tsx/esm src/agent.ts dev",
+    "start": "node dist/agent.js start",
+    "build": "tsc",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@livekit/agents": "^1.0.35",
+    "@livekit/agents-plugin-deepgram": "^1.0.35",
+    "@livekit/agents-plugin-elevenlabs": "^1.0.35",
+    "@livekit/agents-plugin-openai": "^1.0.35",
+    "@livekit/agents-plugin-silero": "^1.0.35",
+    "@livekit/rtc-node": "^0.13.24",
+    "dotenv": "^16.4.0",
+    "livekit-server-sdk": "^2.9.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
