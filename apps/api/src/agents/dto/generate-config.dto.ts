@@ -1,4 +1,4 @@
-import { IsString, IsOptional, IsArray, IsObject } from 'class-validator'
+import { IsString, IsOptional, IsArray, IsIn } from 'class-validator'
 import { ApiProperty } from '@nestjs/swagger'
 
 export class GenerateConfigDto {
@@ -10,11 +10,6 @@ export class GenerateConfigDto {
   @IsArray()
   @IsOptional()
   chatHistory?: { role: string; content: string }[]
-
-  @ApiProperty({ description: 'Current agent config to refine', required: false })
-  @IsObject()
-  @IsOptional()
-  currentConfig?: any
 }
 
 export class EnhancePromptDto {
@@ -43,9 +38,9 @@ export class VoicePreviewDto {
   @IsString()
   voiceId: string
 
-  @ApiProperty({ description: 'Voice provider (elevenlabs or openai)' })
-  @IsString()
-  provider: string
+  @ApiProperty({ description: 'Voice provider (elevenlabs or openai)', enum: ['elevenlabs', 'openai'] })
+  @IsIn(['elevenlabs', 'openai'])
+  provider: 'elevenlabs' | 'openai'
 
   @ApiProperty({ description: 'Sample text to speak', required: false })
   @IsString()

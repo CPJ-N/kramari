@@ -3,12 +3,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import {
-  Headphones,
-  ShoppingCart,
-  Calendar,
-  Users,
-  Phone,
-  FileText,
   Sparkles,
   MessageSquare,
   ArrowRight,
@@ -16,52 +10,9 @@ import {
   Send,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { apiPost } from '@/lib/api'
+import { AGENT_TEMPLATES } from '@/lib/templates'
 import { useBuilderStore } from '../builder-store'
-
-const templates = [
-  {
-    id: 'customer-service',
-    name: 'Customer Service',
-    description: 'Handle support inquiries 24/7',
-    icon: Headphones,
-    color: 'bg-blue-100 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400',
-  },
-  {
-    id: 'sales-qualifier',
-    name: 'Sales Qualifier',
-    description: 'Qualify leads automatically',
-    icon: ShoppingCart,
-    color: 'bg-green-100 text-green-600 dark:bg-green-900/30 dark:text-green-400',
-  },
-  {
-    id: 'appointment-setter',
-    name: 'Appointment Setter',
-    description: 'Book meetings effortlessly',
-    icon: Calendar,
-    color: 'bg-purple-100 text-purple-600 dark:bg-purple-900/30 dark:text-purple-400',
-  },
-  {
-    id: 'support-agent',
-    name: 'Support Agent',
-    description: 'Technical support specialist',
-    icon: Users,
-    color: 'bg-orange-100 text-orange-600 dark:bg-orange-900/30 dark:text-orange-400',
-  },
-  {
-    id: 'order-taker',
-    name: 'Order Taker',
-    description: 'Take orders over the phone',
-    icon: Phone,
-    color: 'bg-pink-100 text-pink-600 dark:bg-pink-900/30 dark:text-pink-400',
-  },
-  {
-    id: 'survey-conductor',
-    name: 'Survey Conductor',
-    description: 'Conduct customer surveys',
-    icon: FileText,
-    color: 'bg-indigo-100 text-indigo-600 dark:bg-indigo-900/30 dark:text-indigo-400',
-  },
-]
 
 export function StartStep() {
   const [description, setDescription] = useState('')
@@ -84,7 +35,7 @@ export function StartStep() {
   }, [chatMessages])
 
   const handleTemplateSelect = (templateId: string) => {
-    const template = templates.find(t => t.id === templateId)
+    const template = AGENT_TEMPLATES.find(t => t.id === templateId)
     if (!template) return
     updateConfig({
       type: templateId,
@@ -98,15 +49,7 @@ export function StartStep() {
     if (!description.trim()) return
     setGenerating(true)
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/agents/ai/generate-config`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ description }),
-        }
-      )
-      const data = await res.json()
+      const data = await apiPost('/agents/ai/generate-config', { description })
       setFromAIResponse(data)
       nextStep()
     } catch (err) {
@@ -133,18 +76,10 @@ export function StartStep() {
     setGenerating(true)
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/agents/ai/generate-config`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            description: userMsg,
-            chatHistory: [...chatMessages, { role: 'user', content: userMsg }],
-          }),
-        }
-      )
-      const data = await res.json()
+      const data = await apiPost('/agents/ai/generate-config', {
+        description: userMsg,
+        chatHistory: [...chatMessages, { role: 'user', content: userMsg }],
+      })
 
       if (data.followUp) {
         addChatMessage({ role: 'assistant', content: data.followUp })
@@ -289,7 +224,7 @@ export function StartStep() {
 
       {/* Template Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-w-3xl mx-auto">
-        {templates.map((template, i) => (
+        {AGENT_TEMPLATES.map((template, i) => (
           <motion.button
             key={template.id}
             initial={{ opacity: 0, y: 10 }}

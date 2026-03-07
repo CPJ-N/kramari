@@ -1,6 +1,5 @@
 'use client'
 
-import { useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -39,15 +38,9 @@ const slideVariants = {
 }
 
 export function AgentBuilder() {
-  const { currentStep, direction, nextStep, prevStep, setStep, resetBuilder } = useBuilderStore()
+  const { currentStep, direction, nextStep, prevStep, setStep } = useBuilderStore()
   const currentIndex = BUILDER_STEPS.findIndex(s => s.id === currentStep)
   const StepComponent = STEP_COMPONENTS[currentStep]
-
-  useEffect(() => {
-    return () => {
-      // Don't reset on unmount — user might navigate back
-    }
-  }, [])
 
   return (
     <div className="min-h-screen bg-kramari-cream/50 dark:bg-kramari-dark">

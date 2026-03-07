@@ -1,9 +1,9 @@
 'use client'
 
-import { useState } from 'react'
 import { motion } from 'framer-motion'
 import { Sparkles, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { apiPost } from '@/lib/api'
 import { useBuilderStore } from '../builder-store'
 
 const MODELS = [
@@ -16,35 +16,24 @@ const MODELS = [
 
 export function BehaviorStep() {
   const { config, updateConfig, isGenerating, setGenerating } = useBuilderStore()
-  const [enhancing, setEnhancing] = useState(false)
 
   const handleEnhance = async () => {
     if (!config.systemPrompt.trim()) return
-    setEnhancing(true)
     setGenerating(true)
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/agents/ai/enhance-prompt`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            prompt: config.systemPrompt,
-            agentName: config.name,
-            personality: config.personality,
-            type: config.type,
-          }),
-        }
-      )
-      const data = await res.json()
+      const data = await apiPost('/agents/ai/enhance-prompt', {
+        prompt: config.systemPrompt,
+        agentName: config.name,
+        personality: config.personality.join(', '),
+        type: config.type,
+      })
       if (data.enhancedPrompt) {
         updateConfig({ systemPrompt: data.enhancedPrompt })
       }
     } catch (err) {
       console.error('Prompt enhancement failed:', err)
     } finally {
-      setEnhancing(false)
       setGenerating(false)
     }
   }
@@ -70,9 +59,9 @@ export function BehaviorStep() {
             variant="ghost"
             size="sm"
             onClick={handleEnhance}
-            disabled={!config.systemPrompt.trim() || enhancing}
+            disabled={!config.systemPrompt.trim() || isGenerating}
           >
-            {enhancing ? (
+            {isGenerating ? (
               <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" />
             ) : (
               <Sparkles className="h-3.5 w-3.5 mr-1.5" />

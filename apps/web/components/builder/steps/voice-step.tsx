@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { motion } from 'framer-motion'
-import { Play, Pause, Volume2, Check } from 'lucide-react'
+import { Play, Pause, Check } from 'lucide-react'
+import { apiPostBlob } from '@/lib/api'
 import { useBuilderStore } from '../builder-store'
 
 interface VoiceOption {
@@ -58,8 +59,21 @@ export function VoiceStep() {
   const [playingVoice, setPlayingVoice] = useState<string | null>(null)
   const [loadingVoice, setLoadingVoice] = useState<string | null>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  const objectUrlRef = useRef<string | null>(null)
+  const cacheRef = useRef<Map<string, string>>(new Map())
 
   const voices = VOICES[config.voiceProvider] || []
+
+  useEffect(() => {
+    return () => {
+      audioRef.current?.pause()
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+      }
+      cacheRef.current.forEach(url => URL.revokeObjectURL(url))
+      cacheRef.current.clear()
+    }
+  }, [])
 
   const handlePlayVoice = async (voiceId: string) => {
     if (playingVoice === voiceId) {
@@ -72,33 +86,38 @@ export function VoiceStep() {
       audioRef.current.pause()
     }
 
+    const cacheKey = `${config.voiceProvider}:${voiceId}`
+    const cachedUrl = cacheRef.current.get(cacheKey)
+
+    if (cachedUrl) {
+      const audio = new Audio(cachedUrl)
+      audioRef.current = audio
+      audio.onended = () => setPlayingVoice(null)
+      audio.onerror = () => setPlayingVoice(null)
+      await audio.play()
+      setPlayingVoice(voiceId)
+      return
+    }
+
     setLoadingVoice(voiceId)
 
     try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/agents/ai/voice-preview`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            voiceId,
-            provider: config.voiceProvider,
-            text: 'Hi there! Thanks for calling. How can I help you today?',
-          }),
-        }
-      )
-
-      if (!res.ok) throw new Error('Failed to get preview')
-
-      const blob = await res.blob()
+      const blob = await apiPostBlob('/agents/ai/voice-preview', {
+        voiceId,
+        provider: config.voiceProvider,
+        text: 'Hi there! Thanks for calling. How can I help you today?',
+      })
+      if (objectUrlRef.current) {
+        URL.revokeObjectURL(objectUrlRef.current)
+      }
       const url = URL.createObjectURL(blob)
+      objectUrlRef.current = url
+      cacheRef.current.set(cacheKey, url)
+
       const audio = new Audio(url)
       audioRef.current = audio
 
-      audio.onended = () => {
-        setPlayingVoice(null)
-        URL.revokeObjectURL(url)
-      }
+      audio.onended = () => setPlayingVoice(null)
       audio.onerror = () => {
         setPlayingVoice(null)
         setLoadingVoice(null)

@@ -15,59 +15,50 @@ import {
   ChevronRight,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useBuilderStore, BUILDER_STEPS } from '../builder-store'
+import { apiPost } from '@/lib/api'
+import { useBuilderStore } from '../builder-store'
 import { useRouter } from 'next/navigation'
 
 export function ReviewStep() {
   const { config, setStep } = useBuilderStore()
   const [deploying, setDeploying] = useState(false)
   const [deployed, setDeployed] = useState<{ agentId: string; phoneNumber?: string } | null>(null)
-  const [testing, setTesting] = useState(false)
+  const [deployError, setDeployError] = useState<string | null>(null)
   const router = useRouter()
 
   const enabledTools = config.tools.filter(t => t.enabled)
+  const faqCount = config.knowledgeBase.filter(e => e.type === 'faq').length
+  const docCount = config.knowledgeBase.filter(e => e.type === 'document').length
 
   const handleDeploy = async () => {
     setDeploying(true)
+    setDeployError(null)
     try {
-      // Create agent
-      const createRes = await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/agents`,
-        {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            name: config.name,
-            description: config.description,
-            type: config.type,
-            systemPrompt: config.systemPrompt,
-            firstMessage: config.firstMessage,
-            voice: config.voice,
-            voiceProvider: config.voiceProvider,
-            model: config.model,
-            maxConcurrentCalls: config.maxConcurrentCalls,
-            maxCallDuration: config.maxCallDuration,
-            config: {
-              temperature: config.temperature,
-              language: config.language,
-              personality: config.personality,
-              tools: enabledTools.map(t => ({ id: t.id, name: t.name })),
-              knowledgeBase: config.knowledgeBase,
-            },
-          }),
-        }
-      )
-      const agent = await createRes.json()
+      const agent = await apiPost('/agents', {
+        name: config.name,
+        description: config.description,
+        type: config.type,
+        systemPrompt: config.systemPrompt,
+        firstMessage: config.firstMessage,
+        voice: config.voice,
+        voiceProvider: config.voiceProvider,
+        model: config.model,
+        maxConcurrentCalls: config.maxConcurrentCalls,
+        maxCallDuration: config.maxCallDuration,
+        config: {
+          temperature: config.temperature,
+          language: config.language,
+          personality: config.personality.join(', '),
+          tools: enabledTools.map(t => ({ id: t.id, name: t.name })),
+          knowledgeBase: config.knowledgeBase,
+        },
+      })
 
-      // Deploy agent
-      await fetch(
-        `${process.env.NEXT_PUBLIC_API_URL}/agents/${agent.id}/deploy`,
-        { method: 'POST' }
-      )
+      await apiPost(`/agents/${agent.id}/deploy`)
 
       setDeployed({ agentId: agent.id })
     } catch (err) {
-      console.error('Deploy failed:', err)
+      setDeployError(err instanceof Error ? err.message : 'Deploy failed. Please try again.')
     } finally {
       setDeploying(false)
     }
@@ -115,7 +106,7 @@ export function ReviewStep() {
       items: [
         { label: 'Name', value: config.name || '—' },
         { label: 'Description', value: config.description || '—' },
-        { label: 'Personality', value: config.personality || '—' },
+        { label: 'Personality', value: config.personality.length > 0 ? config.personality.join(', ') : '—' },
         { label: 'First Message', value: config.firstMessage || '—' },
       ],
     },
@@ -160,7 +151,7 @@ export function ReviewStep() {
         {
           label: 'Entries',
           value: config.knowledgeBase.length > 0
-            ? `${config.knowledgeBase.filter(e => e.type === 'faq').length} FAQs, ${config.knowledgeBase.filter(e => e.type === 'document').length} documents`
+            ? `${faqCount} FAQs, ${docCount} documents`
             : 'None',
         },
       ],
@@ -231,6 +222,12 @@ export function ReviewStep() {
           {deploying ? 'Deploying...' : 'Deploy Agent'}
         </Button>
       </div>
+
+      {deployError && (
+        <p className="text-xs text-red-500 text-center bg-red-50 dark:bg-red-900/20 rounded-lg p-2">
+          {deployError}
+        </p>
+      )}
 
       {!config.name && (
         <p className="text-xs text-red-500 text-center">

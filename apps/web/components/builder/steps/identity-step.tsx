@@ -1,7 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
-import { User, Sparkles } from 'lucide-react'
+import { User } from 'lucide-react'
 import { Input } from '@/components/ui/input'
 import { useBuilderStore } from '../builder-store'
 
@@ -14,14 +14,11 @@ export function IdentityStep() {
   const { config, updateConfig } = useBuilderStore()
 
   const toggleTrait = (trait: string) => {
-    const current = config.personality.split(', ').filter(Boolean)
-    const updated = current.includes(trait)
-      ? current.filter(t => t !== trait)
-      : [...current, trait]
-    updateConfig({ personality: updated.join(', ') })
+    const updated = config.personality.includes(trait)
+      ? config.personality.filter(t => t !== trait)
+      : [...config.personality, trait]
+    updateConfig({ personality: updated })
   }
-
-  const selectedTraits = config.personality.split(', ').filter(Boolean)
 
   return (
     <div className="space-y-8 max-w-2xl mx-auto">
@@ -66,7 +63,7 @@ export function IdentityStep() {
         </label>
         <div className="flex flex-wrap gap-2">
           {personalityTraits.map((trait) => {
-            const isSelected = selectedTraits.includes(trait)
+            const isSelected = config.personality.includes(trait)
             return (
               <motion.button
                 key={trait}
@@ -117,8 +114,8 @@ export function IdentityStep() {
               <p className="font-semibold text-kramari-charcoal dark:text-kramari-taupe">
                 {config.name}
               </p>
-              {config.personality && (
-                <p className="text-xs text-kramari-muted">{config.personality}</p>
+              {config.personality.length > 0 && (
+                <p className="text-xs text-kramari-muted">{config.personality.join(', ')}</p>
               )}
             </div>
           </div>

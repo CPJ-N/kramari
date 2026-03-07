@@ -21,7 +21,7 @@ export interface AgentConfig {
   name: string
   description: string
   type: string
-  personality: string
+  personality: string[]
   firstMessage: string
   voice: string
   voiceProvider: string
@@ -69,7 +69,7 @@ const DEFAULT_CONFIG: AgentConfig = {
   name: '',
   description: '',
   type: 'custom',
-  personality: '',
+  personality: [],
   firstMessage: '',
   voice: 'alloy',
   voiceProvider: 'elevenlabs',

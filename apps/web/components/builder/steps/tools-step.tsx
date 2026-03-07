@@ -87,7 +87,7 @@ export function ToolsStep() {
 
       <div className="text-center">
         <p className="text-xs text-kramari-muted">
-          {config.tools.filter(t => t.enabled).length} tool{config.tools.filter(t => t.enabled).length !== 1 ? 's' : ''} enabled
+          {(() => { const c = config.tools.filter(t => t.enabled).length; return `${c} tool${c !== 1 ? 's' : ''} enabled` })()}
         </p>
       </div>
     </div>
