@@ -1,21 +1,29 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
+import Anthropic from '@anthropic-ai/sdk'
 import { PrismaService } from '../common/database/prisma.service'
 import { LiveKitService } from '../voice/livekit.service'
 import { TwilioService } from '../telephony/twilio.service'
 import { OrchestrationService } from '../orchestration/orchestration.service'
 import { CreateAgentDto } from './dto/create-agent.dto'
 import { UpdateAgentDto } from './dto/update-agent.dto'
+import { GenerateConfigDto, EnhancePromptDto, VoicePreviewDto } from './dto/generate-config.dto'
 
 @Injectable()
 export class AgentsService {
+  private anthropic: Anthropic
+
   constructor(
     private prisma: PrismaService,
     private livekit: LiveKitService,
     private twilio: TwilioService,
     private orchestration: OrchestrationService,
     private configService: ConfigService,
-  ) {}
+  ) {
+    this.anthropic = new Anthropic({
+      apiKey: this.configService.get('ANTHROPIC_API_KEY'),
+    })
+  }
 
   async quickDeploy(templateId: string) {
     console.log(`🚀 Quick deploying agent from template: ${templateId}`)
@@ -311,6 +319,132 @@ export class AgentsService {
         startedAt: 'desc',
       },
     })
+  }
+
+  async generateConfig(dto: GenerateConfigDto) {
+    const isChat = dto.chatHistory && dto.chatHistory.length > 0
+
+    const systemPrompt = `You are an AI assistant that helps configure voice agents. Given a user's description, generate a complete agent configuration as JSON.
+
+Available voice providers: "elevenlabs", "openai"
+Available ElevenLabs voices: "rachel", "drew", "clyde", "domi", "bella", "antoni", "elli", "josh"
+Available OpenAI voices: "alloy", "echo", "fable", "onyx", "nova", "shimmer"
+Available models: "claude-3-sonnet", "claude-3-opus", "claude-3-haiku", "gpt-4o", "gpt-4o-mini"
+Available tools: "get_current_time", "get_weather", "transfer_call", "check_calendar", "lookup_customer", "send_sms", "create_ticket", "book_appointment"
+Available languages: "en", "es", "fr", "de", "it", "pt", "ja", "ko", "zh", "hi", "ar"
+
+${isChat ? `You are in guided conversation mode. Ask follow-up questions to gather more details about the agent before generating config. Only generate the full config when you have enough information.
+
+If you need more info, respond with JSON: {"followUp": "your question here"}
+When ready to generate, respond with JSON: {"config": {...}, "followUp": "I've configured your agent..."}` : `Generate the complete config immediately based on the description.`}
+
+Always respond with valid JSON. For the config object, include: name, description, type (one of: customer-service, sales, support, appointment-setter, custom), personality, firstMessage, voice, voiceProvider, language, systemPrompt, model, temperature (0-1), tools (array of {id, name} for relevant tools).`
+
+    const messages: any[] = isChat
+      ? dto.chatHistory.map(m => ({ role: m.role, content: m.content }))
+      : [{ role: 'user' as const, content: dto.description }]
+
+    const response = await this.anthropic.messages.create({
+      model: this.configService.get('CLAUDE_MODEL') || 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      system: systemPrompt,
+      messages,
+    })
+
+    const text = response.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('')
+
+    try {
+      const parsed = JSON.parse(text)
+      return parsed.config ? parsed : { config: parsed }
+    } catch {
+      return { config: { name: 'My Agent', description: dto.description, type: 'custom', systemPrompt: text } }
+    }
+  }
+
+  async enhancePrompt(dto: EnhancePromptDto) {
+    const response = await this.anthropic.messages.create({
+      model: this.configService.get('CLAUDE_MODEL') || 'claude-sonnet-4-20250514',
+      max_tokens: 2000,
+      system: `You are an expert at writing system prompts for voice AI agents. Enhance the given prompt to be more detailed, effective, and production-ready. Keep the same intent but add:
+- Clear role definition
+- Specific behavioral guidelines
+- Edge case handling
+- Tone and style instructions
+- Call flow guidance
+
+${dto.agentName ? `Agent name: ${dto.agentName}` : ''}
+${dto.personality ? `Personality: ${dto.personality}` : ''}
+${dto.type ? `Type: ${dto.type}` : ''}
+
+Return ONLY the enhanced prompt text, no JSON wrapping or explanation.`,
+      messages: [{ role: 'user', content: dto.prompt }],
+    })
+
+    const enhancedPrompt = response.content
+      .filter(block => block.type === 'text')
+      .map(block => block.text)
+      .join('')
+
+    return { enhancedPrompt }
+  }
+
+  async getVoicePreview(dto: VoicePreviewDto): Promise<Buffer> {
+    const text = dto.text || 'Hi there! Thanks for calling. How can I help you today?'
+
+    if (dto.provider === 'elevenlabs') {
+      const apiKey = this.configService.get('ELEVENLABS_API_KEY')
+      const response = await fetch(
+        `https://api.elevenlabs.io/v1/text-to-speech/${dto.voiceId}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'xi-api-key': apiKey,
+          },
+          body: JSON.stringify({
+            text,
+            model_id: 'eleven_monolingual_v1',
+            voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+          }),
+        }
+      )
+
+      if (!response.ok) {
+        throw new BadRequestException('Failed to generate voice preview')
+      }
+
+      const arrayBuffer = await response.arrayBuffer()
+      return Buffer.from(arrayBuffer)
+    }
+
+    if (dto.provider === 'openai') {
+      const apiKey = this.configService.get('OPENAI_API_KEY')
+      const response = await fetch('https://api.openai.com/v1/audio/speech', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'tts-1',
+          input: text,
+          voice: dto.voiceId,
+          response_format: 'mp3',
+        }),
+      })
+
+      if (!response.ok) {
+        throw new BadRequestException('Failed to generate voice preview')
+      }
+
+      const arrayBuffer = await response.arrayBuffer()
+      return Buffer.from(arrayBuffer)
+    }
+
+    throw new BadRequestException(`Unsupported voice provider: ${dto.provider}`)
   }
 
   private async createDefaultTemplate(category: string) {

@@ -12,11 +12,13 @@ import {
   FileCode,
   Headphones,
   Globe,
+  Wand2,
   Zap,
 } from 'lucide-react'
 
 const navigation = [
   { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Builder', href: '/dashboard/builder', icon: Wand2 },
   { name: 'Agents', href: '/dashboard/agents', icon: Users },
   { name: 'Calls', href: '/dashboard/calls', icon: Phone },
   { name: 'Analytics', href: '/dashboard/analytics', icon: BarChart3 },

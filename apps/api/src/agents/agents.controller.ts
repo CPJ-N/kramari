@@ -7,14 +7,17 @@ import {
   Body,
   Param,
   Query,
+  Res,
   UseGuards,
   Req,
 } from '@nestjs/common'
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger'
+import { Response } from 'express'
 import { AgentsService } from './agents.service'
 import { CreateAgentDto } from './dto/create-agent.dto'
 import { UpdateAgentDto } from './dto/update-agent.dto'
 import { QuickDeployDto } from './dto/quick-deploy.dto'
+import { GenerateConfigDto, EnhancePromptDto, VoicePreviewDto } from './dto/generate-config.dto'
 
 @ApiTags('agents')
 @Controller('agents')
@@ -25,6 +28,29 @@ export class AgentsController {
   @ApiOperation({ summary: 'Quick deploy an agent from template' })
   async quickDeploy(@Body() dto: QuickDeployDto) {
     return this.agentsService.quickDeploy(dto.templateId)
+  }
+
+  @Post('ai/generate-config')
+  @ApiOperation({ summary: 'Generate agent config from natural language description' })
+  async generateConfig(@Body() dto: GenerateConfigDto) {
+    return this.agentsService.generateConfig(dto)
+  }
+
+  @Post('ai/enhance-prompt')
+  @ApiOperation({ summary: 'Enhance a system prompt using AI' })
+  async enhancePrompt(@Body() dto: EnhancePromptDto) {
+    return this.agentsService.enhancePrompt(dto)
+  }
+
+  @Post('ai/voice-preview')
+  @ApiOperation({ summary: 'Get a voice preview audio sample' })
+  async voicePreview(@Body() dto: VoicePreviewDto, @Res() res: Response) {
+    const audioBuffer = await this.agentsService.getVoicePreview(dto)
+    res.set({
+      'Content-Type': 'audio/mpeg',
+      'Content-Length': audioBuffer.length,
+    })
+    res.send(audioBuffer)
   }
 
   @Post()
